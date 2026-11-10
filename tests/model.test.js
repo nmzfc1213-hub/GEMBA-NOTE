@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {initial,sitePreset,area,polygonErrors,validate,ground,footprint,object,warnings,importLegacy,inside} from '../src/model.js';
+test('初期案件は保存・再読込可能',()=>{const p=initial();assert.deepEqual(validate(p),[]);assert.deepEqual(JSON.parse(JSON.stringify(p)),p);});
+test('全敷地テンプレートは正の面積を持つ単純多角形',()=>{for(const type of ['rectangle','trapezoid','flag','L','corner']){const v=sitePreset(type,16,22);assert.deepEqual(polygonErrors(v),[],type);assert.ok(area(v)>0);}assert.equal(area(sitePreset('rectangle',16,22)),352);});
+test('交差・重複・重複頂点・NaNを拒否する',()=>{for(const v of [[[0,0],[4,4],[0,4],[4,0]],[[0,0],[4,0],[4,4],[2,0],[1,0],[0,4]],[[0,0],[4,0],[4,0],[0,4]],[[0,0],[NaN,4],[4,0]],[[0,0],[4,0],[4,4],[2,0],[0,4]]])assert.ok(polygonErrors(v).length);});
+test('勾配の単位は%、高さの単位はm',()=>{assert.equal(ground({elevation:1,slopeX:2,slopeZ:-3},10,5),1.05);});
+test('回転外形の計算は描画と同じY軸回転',()=>{const o={...object('sedan'),w:2,d:4,rotation:90,x:3,z:5};assert.deepEqual(footprint(o).map(v=>v.map(n=>Math.round(n))),[[1,6],[1,4],[5,4],[5,6]]);});
+test('矩形・凹形敷地からのはみ出しを検出',()=>{const p=initial();p.objects=[{...object('sedan'),x:50}];assert.equal(warnings(p).length,1);assert.equal(inside([0,0],sitePreset('rectangle')),true);});
+test('不正JSON・負寸法・不明車種・重複IDを拒否',()=>{assert.ok(validate(null).length);for(const patch of [{w:0},{rotation:NaN},{type:'unknown'},{color:'url(http://example)'}]){const p=initial();Object.assign(p.objects[0],patch);assert.ok(validate(p).length);}const p=initial();p.objects.push({...p.objects[0]});assert.ok(validate(p).length);});
+test('旧3D移行は幅・厚み・車台数を保持し元データを変更しない',()=>{const legacy={siteWidth:14,siteDepth:18,buildingWidth:8,buildingDepth:7,buildingHeight:6.2,slabWidth:6,slabDepth:5,slabThicknessCm:10,finish:'ivory',wishes:{cars:2,carport:true}};const before=JSON.stringify(legacy),p=importLegacy(legacy);assert.deepEqual(validate(p),[]);assert.equal(area(p.site.vertices),252);assert.equal(p.objects.find(o=>o.type==='concrete').h,.1);assert.equal(p.objects.filter(o=>o.type==='sedan').length,2);assert.equal(JSON.stringify(legacy),before);});

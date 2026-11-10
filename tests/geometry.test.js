@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import * as T from 'three';
+import {object,initial,sizes,ground,inside} from '../src/model.js';
+import {objectGroup,houseOutline,buildWorld,dispose} from '../src/scene.js';
+const near=(a,b,t=.001)=>assert.ok(Math.abs(a-b)<t,`${a} ≠ ${b}`);
+test('全種類の配置物が有限な3D形状になる',()=>{const p=initial();for(const type of Object.keys(sizes)){const g=objectGroup(object(type),p.site);g.updateMatrixWorld(true);const b=new T.Box3().setFromObject(g);assert.ok(!b.isEmpty(),type);assert.ok([...b.min,...b.max].every(Number.isFinite),type);dispose(g);}});
+test('4車種の外形寸法がメートル入力と一致',()=>{for(const type of ['sedan','suv','minivan','kei']){const o=object(type),g=objectGroup(o,initial().site);const s=new T.Box3().setFromObject(g).getSize(new T.Vector3());near(s.x,o.w);near(s.y,o.h,.003);near(s.z,o.d,.001);dispose(g);}});
+test('回転・移動・勾配による地盤高を3Dに反映',()=>{const site={elevation:.5,slopeX:2,slopeZ:3},o={...object('concrete'),x:4,z:6,y:.2,rotation:90,w:3,d:5,h:.1};const g=objectGroup(o,site),b=new T.Box3().setFromObject(g),s=b.getSize(new T.Vector3());near(s.x,5);near(s.z,3);near(b.min.y,ground(site,4,6)+.2);dispose(g);});
+test('住宅の全形状と3種屋根が有限で、軒高と屋根高を反映',()=>{for(const shape of ['two','single','L','U','offset'])for(const roof of ['flat','gable','shed']){const o={...object('house'),shape,roof,windows:false,door:false};const outline=houseOutline(shape,o.w,o.d);assert.ok(outline.length>=4);const g=objectGroup(o,initial().site),b=new T.Box3().setFromObject(g);near(b.max.y,o.h+(roof==='flat'?.08:o.roofHeight));near(b.max.x-b.min.x,o.w);near(b.max.z-b.min.z,o.d);dispose(g);}});
+test('敷地メッシュの全頂点が入力勾配面に一致',()=>{const p=initial();p.site.slopeX=2;p.site.slopeZ=-3;p.site.elevation=.5;const g=buildWorld(p,null,false),geo=g.children[0].geometry.attributes.position;for(let i=0;i<geo.count;i++){const diff=ground(p.site,geo.getX(i),geo.getZ(i))-geo.getY(i);assert.ok(Math.abs(diff)<.001||Math.abs(diff-.3)<.001);assert.ok(inside([geo.getX(i),geo.getZ(i)],p.site.vertices));}dispose(g);});
