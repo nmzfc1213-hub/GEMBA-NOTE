@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import * as T from 'three';
+import {initial,object,sitePreset} from '../src/model.js';
+import {suggestPlacement,entranceZone,entranceConflicts,rectanglesOverlap,snapPosition,rotateBy,withinSite,localPoint} from '../src/placement.js';
+import {frameScene,sceneBounds} from '../src/framing.js';
+test('初期デッキは玄関前を避け敷地内の庭側にある',()=>{const p=initial(),deck=p.objects.find(o=>o.type==='deck'),house=p.objects.find(o=>o.type==='house');assert.ok(deck.z>house.z);assert.ok(withinSite(deck,p.site));assert.equal(entranceConflicts(p).length,0);assert.equal(rectanglesOverlap(deck,house),false);});
+test('旧サンプルの玄関前デッキを検出し、一操作で安全な候補へ移せる',()=>{const p=initial(),i=p.objects.findIndex(o=>o.type==='deck');p.objects[i].z=-.6;assert.equal(entranceConflicts(p).length,1);const r=suggestPlacement(p,'deck','garden',p.objects[i]);assert.equal(r.fits,true);p.objects[i]=r.item;assert.equal(entranceConflicts(p).length,0);assert.ok(withinSite(r.item,p.site));});
+test('回転した住宅にも庭・左右の配置が追従する',()=>{const p=initial();p.site.vertices=sitePreset('rectangle',40,40);p.objects=[{...object('house'),rotation:90}];for(const side of ['garden','left','right']){const r=suggestPlacement(p,'deck',side);assert.ok(r.fits);assert.equal(r.item.rotation,90);assert.equal(rectanglesOverlap(r.item,p.objects[0]),false);assert.equal(rectanglesOverlap(r.item,entranceZone(p.objects[0])),false);}});
+test('空きのない敷地では、配置成立と誤表示しない',()=>{const p=initial();p.site.vertices=sitePreset('rectangle',3,3);p.objects=[object('house')];assert.equal(suggestPlacement(p,'deck').fits,false);});
+test('移動は10cmへスナップし、回転の累積は±180°内に正規化',()=>{const p=snapPosition(1.23,-.77);assert.ok(Math.abs(p.x-1.2)<1e-8);assert.ok(Math.abs(p.z+.8)<1e-8);assert.equal(rotateBy(175,15),-170);assert.equal(rotateBy(-175,-15),170);assert.deepEqual(localPoint({...object('house'),rotation:0},2,3),{x:2,z:3});});
+test('縦長スマホ・横長画面・印刷で敷地と建物が画角内に収まる',()=>{const p=initial();for(const aspect of [.45,.8,1.5,2400/1400])for(const view of ['overview','top','front']){const camera=new T.PerspectiveCamera(40,aspect,.1,1000);const controls={target:new T.Vector3(),update(){camera.lookAt(this.target);camera.updateMatrixWorld(true);}};frameScene(camera,controls,p,aspect,view);const b=sceneBounds(p);for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]){const v=new T.Vector3(x,y,z).project(camera);assert.ok(Math.abs(v.x)<=1&&Math.abs(v.y)<=1,`${aspect} ${view}: ${v.x},${v.y}`);}}});
