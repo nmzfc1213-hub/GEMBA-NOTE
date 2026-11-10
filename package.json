@@ -1,1 +1,28 @@
-{"name":"genba-exterior-studio","version":"0.1.0","private":true,"type":"module","scripts":{"dev":"vite --host 0.0.0.0","build":"vite build","test":"node --test tests/*.test.js"},"dependencies":{"react":"19.2.0","react-dom":"19.2.0","three":"0.181.2"},"devDependencies":{"vite":"7.2.2"}}
+{
+  "name": "genba-exterior-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "node scripts/scope-styles.mjs && vite build",
+    "test": "node --test tests/*.test.js tests/*.test.mjs"
+  },
+  "dependencies": {
+    "lucide-react": "^0.468.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "read-excel-file": "^9.3.14",
+    "three": "0.181.2"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.0",
+    "esbuild": "^0.25.12",
+    "jsdom": "^26.1.0",
+    "postcss": "^8.5.6",
+    "postcss-selector-parser": "^7.2.0",
+    "typescript": "^5.9.3",
+    "vite": "7.2.2"
+  }
+}
